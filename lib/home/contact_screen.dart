@@ -46,7 +46,7 @@ class _ContactScreenState extends State<ContactScreen> {
     setState(() {
       _items = data.toList()..sort((a, b) => a['name'].compareTo(b['name'])); // Sort items
       print(_items);
-      _filteredItems = _items; // Initialize filtered list with all items
+      _filteredItems = _items;
     });
   }
 
@@ -62,16 +62,16 @@ class _ContactScreenState extends State<ContactScreen> {
     });
   }
 
-  //filterByBirthDate
+  // filterByBirthDate
   void _filterContactsByDateRange() {
     setState(() {
       _filteredItems = _items.where((contact) {
         final DateFormat formatter = DateFormat('dd-MM-yyyy');
         final DateTime birthdate = formatter.parse(contact['birthdate']);
         if (_startDate != null && _endDate != null) {
-          print(_startDate);
-          print(_endDate);
-          return birthdate.isAfter(_startDate!) && birthdate.isBefore(_endDate!);
+          return birthdate.isAtSameMomentAs(_startDate!) ||
+              birthdate.isAtSameMomentAs(_endDate!) ||
+              (birthdate.isAfter(_startDate!) && birthdate.isBefore(_endDate!));
         } else {
           return true; // If no date range selected, show all contacts
         }
@@ -79,7 +79,7 @@ class _ContactScreenState extends State<ContactScreen> {
     });
   }
 
-  //Sorting
+  // Sorting
   void _sortContacts() {
     setState(() {
       if (_isAscending) {
@@ -93,6 +93,15 @@ class _ContactScreenState extends State<ContactScreen> {
 
   //Create new contact
   Future<void> _createContact(Map<String, dynamic> newContact) async {
+    // Check if the name or number already exists
+    final bool nameExists = _items.any((contact) => contact['name'] == newContact['name']);
+    final bool numberExists = _items.any((contact) => contact['number'] == newContact['number']);
+
+    if (nameExists || numberExists) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: Colors.red.shade900, content: Text("You can't Create a Contact with existed name and number.")));
+      return;
+    }
     await _contactBox.add(newContact);
     print('amount data is ${_contactBox.length}');
     _refreshItems();
@@ -112,6 +121,14 @@ class _ContactScreenState extends State<ContactScreen> {
 
   //Update contact
   Future<void> _updateContact(int itemKey, Map<String, dynamic> item) async {
+    final bool nameExists = _items.any((contact) => contact['name'] == item['name'] && contact['key'] != itemKey);
+    final bool numberExists = _items.any((contact) => contact['number'] == item['number'] && contact['key'] != itemKey);
+
+    if (nameExists || numberExists) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: Colors.red.shade900, content: Text("You can't Update a Contact with existed name and number.")));
+      return;
+    }
     await _contactBox.put(itemKey, item);
     _refreshItems();
   }
@@ -145,174 +162,185 @@ class _ContactScreenState extends State<ContactScreen> {
     }
   }
 
+  void _clearTextFields() {
+    _nameController.clear();
+    _numberController.clear();
+    _birthdateController.clear();
+  }
+
   void _showUp(BuildContext ctx, int? itemKey) {
     if (itemKey != null) {
       final existingItem = _items.firstWhere((element) => element['key'] == itemKey);
       _nameController.text = existingItem['name'];
       _numberController.text = existingItem['number'];
       _birthdateController.text = existingItem['birthdate'];
+    } else {
+      _clearTextFields();
     }
 
     showModalBottomSheet(
-        context: ctx,
-        elevation: 5,
-        isScrollControlled: true,
-        builder: (_) => Container(
-              padding: EdgeInsets.only(
-                top: 15,
-                left: 15,
-                right: 15,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+      context: ctx,
+      elevation: 5,
+      isScrollControlled: true,
+      builder: (_) => Container(
+        padding: EdgeInsets.only(
+          top: 15,
+          left: 15,
+          right: 15,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+        ),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            stops: const [
+              0.4,
+              6,
+            ],
+            colors: [
+              Colors.indigo.shade900,
+              Colors.indigo.shade900,
+            ],
+          ),
+        ),
+        // height: 100,
+        child: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              TextFormField(
+                controller: _nameController,
+                style: const TextStyle(color: Colors.white70),
+                decoration: InputDecoration(
+                  labelText: 'Name',
+                  labelStyle: const TextStyle(color: Colors.white70),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20.0),
+                    borderSide: const BorderSide(color: Colors.red),
+                  ),
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20.0),
+                    borderSide: const BorderSide(
+                      color: Colors.white70,
+                    ),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a name';
+                  }
+                  return null;
+                },
               ),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  stops: const [
-                    0.4,
-                    6,
-                  ],
-                  colors: [
-                    Colors.indigo.shade900,
-                    Colors.indigo.shade900,
-                  ],
+              const SizedBox(
+                height: 8,
+              ),
+              TextFormField(
+                keyboardType: TextInputType.number,
+                controller: _numberController,
+                style: const TextStyle(color: Colors.white70),
+                decoration: InputDecoration(
+                  labelText: 'Number',
+                  labelStyle: const TextStyle(color: Colors.white70),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20.0),
+                    borderSide: const BorderSide(color: Colors.red),
+                  ),
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20.0),
+                    borderSide: const BorderSide(
+                      color: Colors.white70,
+                    ),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a number';
+                  } else if (value.length < 10) {
+                    return 'Number should be at least 10 digits';
+                  }
+                  return null;
+                },
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(10),
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
+                  FilteringTextInputFormatter.digitsOnly,
+                ],
+              ),
+              const SizedBox(
+                height: 8,
+              ),
+              TextFormField(
+                controller: _birthdateController,
+                readOnly: true,
+                onTap: () => _selectBirthDate(ctx),
+                style: const TextStyle(color: Colors.white70),
+                decoration: InputDecoration(
+                  suffixIcon: const Icon(
+                    Icons.calendar_month_outlined,
+                    color: Colors.white70,
+                  ),
+                  labelText: 'Birthdate',
+                  labelStyle: const TextStyle(color: Colors.white70),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20.0),
+                    borderSide: const BorderSide(color: Colors.red),
+                  ),
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20.0),
+                    borderSide: const BorderSide(
+                      color: Colors.white70,
+                    ),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please select a birthdate';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(
+                height: 8,
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (formKey.currentState?.validate() ?? false) {
+                    if (itemKey == null) {
+                      _createContact({
+                        'name': _nameController.text,
+                        'number': _numberController.text,
+                        'birthdate': _birthdateController.text,
+                      });
+                    } else {
+                      _updateContact(itemKey, {
+                        'name': _nameController.text.trim(),
+                        'number': _numberController.text.trim(),
+                        'birthdate': _birthdateController.text.trim(),
+                      });
+                    }
+
+                    _nameController.clear();
+                    _numberController.clear();
+                    _birthdateController.clear();
+
+                    Navigator.pop(context);
+                  }
+                },
+                child: Text(
+                  itemKey == null ? 'Create Contact' : 'Update',
                 ),
               ),
-              // height: 100,
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    TextFormField(
-                      controller: _nameController,
-                      style: const TextStyle(color: Colors.white70),
-                      decoration: InputDecoration(
-                        labelText: 'Name',
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20.0),
-                          borderSide: const BorderSide(color: Colors.red),
-                        ),
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20.0),
-                          borderSide: const BorderSide(
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter a name';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(
-                      height: 8,
-                    ),
-                    TextFormField(
-                      keyboardType: TextInputType.number,
-                      controller: _numberController,
-                      style: const TextStyle(color: Colors.white70),
-                      decoration: InputDecoration(
-                        labelText: 'Number',
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20.0),
-                          borderSide: const BorderSide(color: Colors.red),
-                        ),
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20.0),
-                          borderSide: const BorderSide(
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter a number';
-                        } else if (value.length < 10) {
-                          return 'Number should be at least 10 digits';
-                        }
-                        return null;
-                      },
-                      inputFormatters: [
-                        LengthLimitingTextInputFormatter(10),
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
-                    ),
-                    const SizedBox(
-                      height: 8,
-                    ),
-                    TextFormField(
-                      controller: _birthdateController,
-                      readOnly: true,
-                      onTap: () => _selectBirthDate(ctx),
-                      style: const TextStyle(color: Colors.white70),
-                      decoration: InputDecoration(
-                        suffixIcon: const Icon(
-                          Icons.calendar_month_outlined,
-                          color: Colors.white70,
-                        ),
-                        labelText: 'Birthdate',
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20.0),
-                          borderSide: const BorderSide(color: Colors.red),
-                        ),
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20.0),
-                          borderSide: const BorderSide(
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please select a birthdate';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(
-                      height: 8,
-                    ),
-                    ElevatedButton(
-                      onPressed: () async {
-                        if (formKey.currentState?.validate() ?? false) {
-                          if (itemKey == null) {
-                            _createContact({
-                              'name': _nameController.text,
-                              'number': _numberController.text,
-                              'birthdate': _birthdateController.text,
-                            });
-                          } else {
-                            _updateContact(itemKey, {
-                              'name': _nameController.text.trim(),
-                              'number': _numberController.text.trim(),
-                              'birthdate': _birthdateController.text.trim(),
-                            });
-                          }
-
-                          _nameController.clear();
-                          _numberController.clear();
-                          _birthdateController.clear();
-
-                          Navigator.pop(context);
-                        }
-                      },
-                      child: Text(itemKey == null ? 'Create Contact' : 'Update'),
-                    ),
-                  ],
-                ),
-              ),
-            ));
+            ],
+          ),
+        ),
+      ),
+    ).then((_) => _clearTextFields());
   }
 
   //section method
@@ -347,121 +375,130 @@ class _ContactScreenState extends State<ContactScreen> {
           ),
           centerTitle: true,
         ),
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4, top: 10),
-              child: TextField(
-                style: const TextStyle(color: Colors.white70),
-                controller: _searchController,
-                decoration: const InputDecoration(
-                  labelText: 'Search',
-                  labelStyle: TextStyle(color: Colors.white70),
-                  hintText: 'Search by name or number',
-                  hintStyle: TextStyle(color: Colors.white70),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: Colors.white70,
+        body: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4, top: 10),
+                child: TextField(
+                  style: const TextStyle(color: Colors.white70),
+                  controller: _searchController,
+                  decoration: const InputDecoration(
+                    labelText: 'Search',
+                    labelStyle: TextStyle(color: Colors.white70),
+                    hintText: 'Search by name or number',
+                    hintStyle: TextStyle(color: Colors.white70),
+                    prefixIcon: Icon(
+                      Icons.search,
+                      color: Colors.white70,
+                    ),
+                    contentPadding: EdgeInsets.symmetric(vertical: 9.0),
+                    border: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white70), borderRadius: BorderRadius.all(Radius.circular(30))),
                   ),
-                  contentPadding: EdgeInsets.symmetric(vertical: 9.0),
-                  border: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white70), borderRadius: BorderRadius.all(Radius.circular(30))),
+                  onChanged: _filterContacts,
                 ),
-                onChanged: _filterContacts,
               ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  onPressed: _sortContacts,
-                  icon: Icon(
-                    _isAscending ? Icons.sort_by_alpha : Icons.sort_by_alpha_outlined,
-                    color: Colors.white,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    onPressed: _sortContacts,
+                    icon: Icon(
+                      _isAscending ? Icons.sort_by_alpha : Icons.sort_by_alpha_outlined,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                IconButton(
-                  onPressed: () {
-                    _showDateRangePicker(context);
-                  },
-                  icon: Icon(
-                    Icons.calendar_month_outlined,
-                    color: Colors.white,
+                  IconButton(
+                    onPressed: () {
+                      _showDateRangePicker(context);
+                    },
+                    icon: const Icon(
+                      Icons.calendar_month_outlined,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _filteredItems.length,
-                itemBuilder: (_, index) {
-                  final currentItem = _filteredItems[index];
-                  final String section = _getFirstLetter(currentItem['name']);
+                  IconButton(
+                    onPressed: _resetFilters, // Call _resetFilters() when the button is pressed
+                    icon: const Icon(
+                      Icons.refresh,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _filteredItems.length,
+                  itemBuilder: (_, index) {
+                    final currentItem = _filteredItems[index];
+                    final String section = _getFirstLetter(currentItem['name']);
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (index == 0 || _getFirstLetter(_filteredItems[index - 1]['name']) != section)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 13, top: 13),
-                          child: Text(
-                            section,
-                            style: const TextStyle(fontSize: 16, color: Colors.white70, fontWeight: FontWeight.bold),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (index == 0 || _getFirstLetter(_filteredItems[index - 1]['name']) != section)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 13, top: 13),
+                            child: Text(
+                              section,
+                              style: const TextStyle(fontSize: 16, color: Colors.white70, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 3),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.indigo.shade700, width: 0.5),
+                            borderRadius: BorderRadius.circular(20),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Colors.indigo.shade900, Colors.black87],
+                            ),
+                          ),
+                          child: ListTile(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            // tileColor: Colors.indigo.shade700,
+                            iconColor: Colors.white,
+                            dense: true,
+                            title: Text(
+                              '${currentItem['name']} ${currentItem['birthdate']}',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w300),
+                            ),
+                            textColor: Colors.white,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                    onPressed: () {
+                                      _showUp(context, currentItem['key']);
+                                    },
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      size: 22,
+                                    )),
+                                IconButton(
+                                    onPressed: () {
+                                      _deleteContact(currentItem['key']);
+                                    },
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      size: 22,
+                                    ))
+                              ],
+                            ),
                           ),
                         ),
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 3),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.indigo.shade700, width: 0.5),
-                          borderRadius: BorderRadius.circular(20),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Colors.indigo.shade900, Colors.black87],
-                          ),
-                        ),
-                        child: ListTile(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          // tileColor: Colors.indigo.shade700,
-                          iconColor: Colors.white,
-                          dense: true,
-                          title: Text(
-                            '${currentItem['name']} ${currentItem['birthdate']}',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w300),
-                          ),
-                          textColor: Colors.white,
-                          trailing: Row(
-                            // mainAxisAlignment: MainAxisAlignment.end,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                  onPressed: () {
-                                    _showUp(context, currentItem['key']);
-                                  },
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    size: 22,
-                                  )),
-                              IconButton(
-                                  onPressed: () {
-                                    _deleteContact(currentItem['key']);
-                                  },
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    size: 22,
-                                  ))
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         floatingActionButton: Container(
           decoration: BoxDecoration(
@@ -475,7 +512,7 @@ class _ContactScreenState extends State<ContactScreen> {
           ),
           child: FloatingActionButton(
             elevation: 0,
-            backgroundColor: Colors.transparent,
+            backgroundColor: Colors.indigo.shade900,
             foregroundColor: Colors.white,
             onPressed: () {
               _showUp(context, null);
@@ -488,6 +525,7 @@ class _ContactScreenState extends State<ContactScreen> {
     );
   }
 
+  // for select birthDate ranges for filtering
   Future<void> _showDateRangePicker(BuildContext context) async {
     final DateTimeRange? pickedRange = await showDateRangePicker(
       context: context,
@@ -497,7 +535,6 @@ class _ContactScreenState extends State<ContactScreen> {
 
     if (pickedRange != null) {
       setState(() {
-        // Format picked dates to "dd-MM-yyyy" format
         final DateFormat formatter = DateFormat('dd-MM-yyyy');
         _startDate = pickedRange.start;
         final String formattedStartDate = formatter.format(pickedRange.start);
@@ -508,5 +545,14 @@ class _ContactScreenState extends State<ContactScreen> {
         _filterContactsByDateRange();
       });
     }
+  }
+
+  // reset all filters
+  void _resetFilters() {
+    setState(() {
+      _filteredItems = List.from(_items);
+      _startDate = null;
+      _endDate = null;
+    });
   }
 }
