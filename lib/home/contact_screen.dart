@@ -20,6 +20,9 @@ class _ContactScreenState extends State<ContactScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isAscending = true;
 
+  DateTime? _startDate;
+  DateTime? _endDate;
+
   final _scrollController = ScrollController();
   double itemHeight = 80.0;
 
@@ -27,8 +30,6 @@ class _ContactScreenState extends State<ContactScreen> {
 
   //kEy
   GlobalKey<FormState> formKey = GlobalKey<FormState>(); // Declare GlobalKey outside the class
-
-  final DateFormat _dateFormat = DateFormat('dd-MM-yyyy');
 
   @override
   void initState() {
@@ -57,6 +58,23 @@ class _ContactScreenState extends State<ContactScreen> {
         final String lowercaseQuery = query.toLowerCase();
 
         return name.contains(lowercaseQuery) || number.contains(lowercaseQuery);
+      }).toList();
+    });
+  }
+
+  //filterByBirthDate
+  void _filterContactsByDateRange() {
+    setState(() {
+      _filteredItems = _items.where((contact) {
+        final DateFormat formatter = DateFormat('dd-MM-yyyy');
+        final DateTime birthdate = formatter.parse(contact['birthdate']);
+        if (_startDate != null && _endDate != null) {
+          print(_startDate);
+          print(_endDate);
+          return birthdate.isAfter(_startDate!) && birthdate.isBefore(_endDate!);
+        } else {
+          return true; // If no date range selected, show all contacts
+        }
       }).toList();
     });
   }
@@ -110,8 +128,9 @@ class _ContactScreenState extends State<ContactScreen> {
     );
   }
 
-  // Show DatePicker
-  Future<void> _selectDate(BuildContext context) async {
+  // Show DatePicker for selectBirthDate
+  Future<void> _selectBirthDate(BuildContext context) async {
+    final DateFormat formatter = DateFormat('dd-MM-yyyy');
     final DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -119,13 +138,13 @@ class _ContactScreenState extends State<ContactScreen> {
       lastDate: DateTime.now(),
     );
     if (pickedDate != null) {
+      final String formattedDate = formatter.format(pickedDate);
       setState(() {
-        _birthdateController.text = pickedDate.toString();
+        _birthdateController.text = formattedDate;
       });
     }
   }
 
-  //
   void _showUp(BuildContext ctx, int? itemKey) {
     if (itemKey != null) {
       final existingItem = _items.firstWhere((element) => element['key'] == itemKey);
@@ -145,6 +164,20 @@ class _ContactScreenState extends State<ContactScreen> {
                 right: 15,
                 bottom: MediaQuery.of(ctx).viewInsets.bottom,
               ),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  stops: const [
+                    0.4,
+                    6,
+                  ],
+                  colors: [
+                    Colors.indigo.shade900,
+                    Colors.indigo.shade900,
+                  ],
+                ),
+              ),
               // height: 100,
               child: Form(
                 key: formKey,
@@ -154,7 +187,22 @@ class _ContactScreenState extends State<ContactScreen> {
                   children: [
                     TextFormField(
                       controller: _nameController,
-                      decoration: const InputDecoration(hintText: 'Name'),
+                      style: const TextStyle(color: Colors.white70),
+                      decoration: InputDecoration(
+                        labelText: 'Name',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20.0),
+                          borderSide: const BorderSide(color: Colors.red),
+                        ),
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20.0),
+                          borderSide: const BorderSide(
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter a name';
@@ -168,7 +216,22 @@ class _ContactScreenState extends State<ContactScreen> {
                     TextFormField(
                       keyboardType: TextInputType.number,
                       controller: _numberController,
-                      decoration: const InputDecoration(hintText: 'Number'),
+                      style: const TextStyle(color: Colors.white70),
+                      decoration: InputDecoration(
+                        labelText: 'Number',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20.0),
+                          borderSide: const BorderSide(color: Colors.red),
+                        ),
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20.0),
+                          borderSide: const BorderSide(
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter a number';
@@ -189,10 +252,26 @@ class _ContactScreenState extends State<ContactScreen> {
                     TextFormField(
                       controller: _birthdateController,
                       readOnly: true,
-                      onTap: () => _selectDate(ctx),
-                      decoration: const InputDecoration(
-                        hintText: 'Birthdate',
-                        suffixIcon: Icon(Icons.calendar_month_outlined),
+                      onTap: () => _selectBirthDate(ctx),
+                      style: const TextStyle(color: Colors.white70),
+                      decoration: InputDecoration(
+                        suffixIcon: const Icon(
+                          Icons.calendar_month_outlined,
+                          color: Colors.white70,
+                        ),
+                        labelText: 'Birthdate',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20.0),
+                          borderSide: const BorderSide(color: Colors.red),
+                        ),
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20.0),
+                          borderSide: const BorderSide(
+                            color: Colors.white70,
+                          ),
+                        ),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -236,30 +315,9 @@ class _ContactScreenState extends State<ContactScreen> {
             ));
   }
 
-  //section methodd
+  //section method
   String _getFirstLetter(String name) {
     return name.isNotEmpty ? name[0].toUpperCase() : '';
-  }
-
-  //by bday
-//by bday
-  void _filterContactsByDateRange(DateTime startDate, DateTime endDate) {
-    print('Start Date: $startDate'); // Add this line
-    print('End Date: $endDate'); // Add this line
-
-    setState(() {
-      _filteredItems = _items.where((contact) {
-        final DateTime birthdate = DateTime.parse(contact['birthdate']);
-
-        // Check if the contact's birthdate falls within the specified range
-        final bool matchesDateRange =
-            (startDate == null || birthdate.isAfter(startDate)) && (endDate == null || birthdate.isBefore(endDate));
-
-        return matchesDateRange;
-      }).toList();
-
-      print('Filtered Items Count: ${_filteredItems.length}'); // Add this line
-    });
   }
 
   @override
@@ -269,7 +327,7 @@ class _ContactScreenState extends State<ContactScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          stops: [
+          stops: const [
             0.3,
             6,
           ],
@@ -294,11 +352,13 @@ class _ContactScreenState extends State<ContactScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 4, top: 10),
               child: TextField(
+                style: const TextStyle(color: Colors.white70),
                 controller: _searchController,
                 decoration: const InputDecoration(
                   labelText: 'Search',
                   labelStyle: TextStyle(color: Colors.white70),
                   hintText: 'Search by name or number',
+                  hintStyle: TextStyle(color: Colors.white70),
                   prefixIcon: Icon(
                     Icons.search,
                     color: Colors.white70,
@@ -314,93 +374,18 @@ class _ContactScreenState extends State<ContactScreen> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 IconButton(
-                  onPressed: () async {
-                    DateTime? startDate;
-                    DateTime? endDate;
-                    final List<DateTime?> pickedDates = await showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return StatefulBuilder(
-                          builder: (BuildContext context, StateSetter setState) {
-                            return AlertDialog(
-                              title: const Text('Select Date Range'),
-                              content: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text('Start Date: ${startDate != null ? _dateFormat.format(startDate!) : 'Not Selected'}'),
-                                  const SizedBox(
-                                    height: 10,
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () async {
-                                      final pickedDate = await showDatePicker(
-                                        context: context,
-                                        initialDate: startDate ?? DateTime.now(),
-                                        firstDate: DateTime(1900),
-                                        lastDate: DateTime.now(),
-                                      );
-                                      if (pickedDate != null) {
-                                        setState(() {
-                                          startDate = pickedDate;
-                                        });
-                                      }
-                                      print('Start Date: $startDate'); // Add this line
-                                    },
-                                    child: const Text('Select Start Date'),
-                                  ),
-                                  const SizedBox(
-                                    height: 10,
-                                  ),
-                                  Text('End Date: ${endDate != null ? _dateFormat.format(endDate!) : 'Not Selected'}'),
-                                  const SizedBox(
-                                    height: 10,
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () async {
-                                      final pickedDate = await showDatePicker(
-                                        context: context,
-                                        initialDate: endDate ?? DateTime.now(),
-                                        firstDate: DateTime(1900),
-                                        lastDate: DateTime.now(),
-                                      );
-                                      if (pickedDate != null) {
-                                        setState(() {
-                                          endDate = pickedDate;
-                                        });
-                                      }
-                                      print('End Date: $endDate'); // Add this line
-                                    },
-                                    child: const Text('Select End Date'),
-                                  ),
-                                ],
-                              ),
-                              actions: <Widget>[
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.of(context).pop([startDate, endDate]);
-                                  },
-                                  child: const Text('OK'),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      },
-                    );
-                    if (pickedDates != null) {
-                      print('Selected Dates: $pickedDates'); // Add this line
-                      _filterContactsByDateRange(pickedDates[0]!, pickedDates[1]!);
-                    }
-                  },
-                  icon: const Icon(
-                    Icons.date_range,
+                  onPressed: _sortContacts,
+                  icon: Icon(
+                    _isAscending ? Icons.sort_by_alpha : Icons.sort_by_alpha_outlined,
                     color: Colors.white,
                   ),
                 ),
                 IconButton(
-                  onPressed: _sortContacts,
+                  onPressed: () {
+                    _showDateRangePicker(context);
+                  },
                   icon: Icon(
-                    _isAscending ? Icons.sort_by_alpha : Icons.sort_by_alpha_outlined,
+                    Icons.calendar_month_outlined,
                     color: Colors.white,
                   ),
                 ),
@@ -443,7 +428,7 @@ class _ContactScreenState extends State<ContactScreen> {
                           iconColor: Colors.white,
                           dense: true,
                           title: Text(
-                            currentItem['name'],
+                            '${currentItem['name']} ${currentItem['birthdate']}',
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w300),
                           ),
                           textColor: Colors.white,
@@ -501,5 +486,27 @@ class _ContactScreenState extends State<ContactScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _showDateRangePicker(BuildContext context) async {
+    final DateTimeRange? pickedRange = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+
+    if (pickedRange != null) {
+      setState(() {
+        // Format picked dates to "dd-MM-yyyy" format
+        final DateFormat formatter = DateFormat('dd-MM-yyyy');
+        _startDate = pickedRange.start;
+        final String formattedStartDate = formatter.format(pickedRange.start);
+        _endDate = pickedRange.end;
+        final String formattedEndDate = formatter.format(pickedRange.end);
+        print(formattedStartDate);
+        print(formattedEndDate);
+        _filterContactsByDateRange();
+      });
+    }
   }
 }

@@ -6,10 +6,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   await Hive.openBox('contact_box');
-  // WidgetsFlutterBinding.ensureInitialized();
-  // await Hive.initFlutter();
-  // Hive.registerAdapter(ContactAdapter());
-  // await Hive.openBox<Contact>('contacts');
 
   runApp(const MyApp());
 }
